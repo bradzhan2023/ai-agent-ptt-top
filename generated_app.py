@@ -76,10 +76,8 @@ def get_ptt_gossiping_popular_posts():
         if push_count_str == '爆':
             push_count = 100
         elif push_count_str.startswith('X'):
-            try:
-                push_count = -int(push_count_str[1:]) * 10
-            except ValueError:
-                push_count = 0
+            # 根據新需求，將 'X' 開頭的負評視為 0
+            push_count = 0
         else:
             try:
                 push_count = int(push_count_str)
@@ -92,15 +90,14 @@ def get_ptt_gossiping_popular_posts():
         if title_link_tag:
             title = title_link_tag.text.strip()
         else:
+            # 處理已刪除或無連結的文章標題
             title = title_tag_div.text.strip() if title_tag_div else "[無標題]"
             if "本文已被刪除" in title or "本文已被" in title:
-                continue
+                continue # 跳過已刪除的文章
 
         author_tag = post.find('div', class_='author')
         author = author_tag.text.strip() if author_tag else '[未知]'
         
-        print(f"推文數: {push_count}, 標題: {title}, 作者: {author}")
-
         # 將文章資料加入列表
         all_posts_data.append({
             '推文數': push_count,
@@ -108,7 +105,40 @@ def get_ptt_gossiping_popular_posts():
             '作者': author
         })
     
-    # 將爬取結果存成 CSV 檔案
+    if all_posts_data:
+        # 根據推文數進行由大到小的排序
+        all_posts_data.sort(key=lambda x: x['推文數'], reverse=True)
+
+        print("\n--- PTT 八卦版熱門文章 (依推文數排序) ---")
+        
+        # 動態計算欄位寬度，確保表格整齊
+        push_col_width = max(len("推文數"), max(len(str(post['推文數'])) for post in all_posts_data))
+        title_col_width = max(len("標題"), max(len(post['標題']) for post in all_posts_data))
+        author_col_width = max(len("作者"), max(len(post['作者']) for post in all_posts_data))
+        
+        # 增加一些額外填充，讓表格更美觀
+        push_col_width += 2
+        title_col_width += 4
+        author_col_width += 2
+
+        # 表頭格式化字串
+        header_format = f"{{:<{push_col_width}}} {{:<{title_col_width}}} {{:<{author_col_width}}}"
+        
+        # 打印表頭
+        print(header_format.format("推文數", "標題", "作者"))
+        # 打印分隔線 (加4是因為有兩個分隔符號，每個佔2個空格)
+        print("-" * (push_col_width + title_col_width + author_col_width + 4))
+
+        # 打印排序後的文章內容
+        for post in all_posts_data:
+            print(header_format.format(post['推文數'], post['標題'], post['作者']))
+        
+        # 打印底部線
+        print("-" * (push_col_width + title_col_width + author_col_width + 4))
+    else:
+        print("\n沒有收集到任何文章資料。")
+
+    # 將爬取結果存成 CSV 檔案 (此部分功能不變)
     if all_posts_data:
         csv_file_path = 'ptt_gossiping_popular_posts.csv'
         fieldnames = ['推文數', '標題', '作者']
